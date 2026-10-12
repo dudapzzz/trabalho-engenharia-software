@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <div style="text-align: center;">
+        <h1>A aplicação está rodando no docker!!!!!!!!!</h1>
+        <p>E Essa é a versão 2.0</p>
+        <iframe src="https://giphy.com/embed/75ZaxapnyMp2w" width="480" height="480" style="" frameBorder="0" class="giphy-embed" allowFullScreen></iframe>
+    </div>
+</body>
+</html>

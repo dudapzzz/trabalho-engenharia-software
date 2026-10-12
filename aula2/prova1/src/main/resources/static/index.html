@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cadastro de embarcações</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f2f5f8;color:#203146;font:16px/1.5 system-ui,sans-serif}main{max-width:1180px;margin:40px auto;padding:0 24px}header{margin-bottom:28px}h1{font-size:32px;margin:6px 0}h2{font-size:21px;margin:0 0 18px}p{margin:8px 0;color:#526478}.eyebrow{font-size:13px;font-weight:700;letter-spacing:2px;color:#126b76}.layout{display:grid;grid-template-columns:340px 1fr;gap:24px;align-items:start}.card{background:white;border:1px solid #dce3eb;border-radius:12px;padding:24px}.fields{border:0;margin:0;padding:0;min-width:0}label{display:block;font-weight:600;font-size:14px;margin:12px 0 5px}input,select{min-width:0;width:100%;padding:10px;border:1px solid #aebdcc;border-radius:6px;background:#fff;color:inherit;font:inherit}.pair{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}button{padding:10px 14px;border:1px solid #bdcbd6;border-radius:6px;background:white;color:#203146;cursor:pointer;font:600 14px system-ui}button:hover{background:#eaf1f5}button:disabled{opacity:.5;cursor:not-allowed}.primary{background:#126b76;border-color:#126b76;color:white}.primary:hover{background:#0c5360}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:20px}.topline{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px}.topline h2{margin:0}.table-wrap{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:13px 8px;border-bottom:1px solid #e2e8ee}th{color:#526478;font-size:12px}td small{display:block;color:#526478}.row-actions{display:flex;gap:6px}.row-actions button{padding:7px 9px}.danger{color:#a52b36}.badge{white-space:nowrap;display:inline-block;background:#edf2f7;padding:3px 8px;border-radius:12px;font-size:12px}.note{font-size:13px;margin-top:18px}.message{padding:12px 16px;border-radius:8px;background:#e6f3f2;margin-bottom:20px;overflow-wrap:anywhere}.message.error{background:#fce9e9;color:#922834}.empty{text-align:center;padding:28px;color:#526478}:focus-visible{outline:3px solid #dc9618;outline-offset:2px}[hidden]{display:none!important}@media(max-width:850px){.layout{grid-template-columns:1fr}main{margin:24px auto;padding:0 16px}.card{padding:18px}h1{font-size:27px}}
+</style>
+</head>
+<body>
+<main>
+<header><span class="eyebrow">CONTROLE DE EMBARCAÇÕES</span><h1>Sua frota em um só lugar</h1><p>Cadastre, consulte, edite e exclua embarcações pelo navegador.</p></header>
+<div id="message" class="message" role="status" aria-live="polite">Carregando embarcações…</div>
+<div class="layout">
+<section class="card" aria-labelledby="form-title">
+<h2 id="form-title">Nova embarcação</h2>
+<form id="form"><fieldset class="fields" id="fields">
+<label for="nome">Nome</label><input id="nome" name="nome" required minlength="3" maxlength="100" placeholder="Ex.: Estrela do Mar">
+<label for="registro">Registro único</label><input id="registro" name="registro" required maxlength="20" placeholder="Ex.: EM-001">
+<div class="pair"><div><label for="quantidadeTripulantes">Tripulantes</label><input id="quantidadeTripulantes" name="quantidadeTripulantes" type="number" required min="1" max="15" step="1" value="1"></div><div><label for="quantidadePassageiros">Passageiros</label><input id="quantidadePassageiros" name="quantidadePassageiros" type="number" required min="0" max="2147483647" step="1" value="0"></div></div>
+<div class="pair"><div><label for="anoFabricacao">Ano de fabricação</label><input id="anoFabricacao" name="anoFabricacao" type="number" required min="1960" max="2026" step="1" placeholder="2000"></div><div><label for="comprimento">Comprimento (m)</label><input id="comprimento" name="comprimento" type="number" required min="1" step="any" placeholder="50"></div></div>
+<label for="situacao">Situação</label><select id="situacao" name="situacao" required><option value="INATIVA">Inativa</option><option value="ATIVA">Ativa</option><option value="EM_MANUTENCAO">Em manutenção</option></select>
+<div class="actions"><button class="primary" id="save" type="submit">Cadastrar</button><button id="cancel" type="button" hidden>Cancelar edição</button></div>
+</fieldset></form>
+<p class="note">Nome: 3 a 100 caracteres. Tripulantes: 1 a 15. Ano: 1960 a 2026, conforme as regras do sistema.</p>
+</section>
+<section class="card" aria-labelledby="list-title"><div class="topline"><h2 id="list-title">Embarcações <span id="count"></span></h2><button type="button" id="refresh">Atualizar lista</button></div>
+<div class="table-wrap"><table><thead><tr><th scope="col">Embarcação</th><th scope="col">Pessoas</th><th scope="col">Ano / tamanho</th><th scope="col">Situação</th><th scope="col">Ações</th></tr></thead><tbody id="rows"></tbody></table></div><p id="empty" class="empty" hidden>Nenhuma embarcação cadastrada. Use o formulário para começar.</p>
+<p class="note">Embarcações ativas não podem ser excluídas. Para excluir, primeiro edite a situação.</p>
+</section>
+</div>
+</main>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const form = $('form');
+const labels = {ATIVA:'Ativa', INATIVA:'Inativa', EM_MANUTENCAO:'Em manutenção'};
+let editingId = null;
+let busy = false;
+function message(text, error = false) { $('message').textContent = text; $('message').classList.toggle('error', error); }
+function setBusy(value) { busy = value; $('fields').disabled = value; $('refresh').disabled = value; document.querySelectorAll('#rows button').forEach(button => { button.disabled = value || button.dataset.blocked === 'true'; }); }
+async function request(path = '', options = {}) {
+  let response;
+  try { response = await fetch('embarcacoes' + path, {...options, headers: {'Accept':'application/json', ...(options.body ? {'Content-Type':'application/json'} : {})}}); }
+  catch { throw new Error('Não foi possível conectar à aplicação. Verifique se ela está rodando e tente novamente.'); }
+  if (!response.ok) {
+    const hints = {400:'Confira os campos informados.', 404:'Registro não encontrado. Atualize a lista.', 409:'Verifique se o registro já está cadastrado.', 500:'Confira se o registro é único e se o banco está disponível. Consulte o terminal da aplicação para detalhes.'};
+    throw new Error(`A operação não foi concluída (HTTP ${response.status}). ${hints[response.status] || 'Tente novamente.'}`);
+  }
+  const text = await response.text();
+  return text ? JSON.parse(text) : null;
+}
+function resetForm() { editingId = null; form.reset(); $('form-title').textContent = 'Nova embarcação'; $('save').textContent = 'Cadastrar'; $('cancel').hidden = true; }
+function cell(row, text, detail) { const td = row.insertCell(); td.textContent = text; if (detail !== undefined) { const small = document.createElement('small'); small.textContent = detail; td.append(small); } return td; }
+async function load() {
+  const data = await request();
+  if (!Array.isArray(data)) throw new Error('A API retornou uma lista em formato inesperado.');
+  $('rows').replaceChildren(); $('empty').hidden = data.length !== 0; $('count').textContent = `(${data.length})`;
+  for (const boat of data) {
+    const row = document.createElement('tr');
+    cell(row, boat.nome, `#${boat.id} · ${boat.registro}`);
+    cell(row, `${boat.quantidadeTripulantes} tripulantes`, `${boat.quantidadePassageiros} passageiros`);
+    cell(row, boat.anoFabricacao, `${boat.comprimento} m`);
+    const badge = document.createElement('span'); badge.className = 'badge'; badge.textContent = labels[boat.situacao] || boat.situacao; cell(row, '').append(badge);
+    const actions = document.createElement('div'); actions.className = 'row-actions';
+    const edit = document.createElement('button'); edit.type = 'button'; edit.textContent = 'Editar'; edit.setAttribute('aria-label', `Editar ${boat.nome}`); edit.onclick = () => editBoat(boat.id);
+    const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'danger'; remove.textContent = 'Excluir'; remove.setAttribute('aria-label', `Excluir ${boat.nome}`); remove.dataset.blocked = String(boat.situacao === 'ATIVA'); remove.title = boat.situacao === 'ATIVA' ? 'Altere a situação antes de excluir.' : 'Excluir embarcação'; remove.onclick = () => deleteBoat(boat);
+    actions.append(edit, remove); cell(row, '').append(actions); $('rows').append(row);
+  }
+}
+async function run(action) { if (busy) return; setBusy(true); try { await action(); } catch (error) { message(error.message, true); } finally { setBusy(false); } }
+async function refreshAfter(success) { try { await load(); message(success); } catch (error) { message(`${success} Porém, a lista não pôde ser atualizada. Clique em Atualizar lista. ${error.message}`, true); } }
+function editBoat(id) { run(async () => { const boat = await request('/' + encodeURIComponent(id)); if (!boat) throw new Error('Embarcação não encontrada.'); editingId = boat.id; for (const name of ['nome','registro','quantidadeTripulantes','quantidadePassageiros','anoFabricacao','comprimento','situacao']) form.elements.namedItem(name).value = boat[name]; $('form-title').textContent = `Editar embarcação #${boat.id}`; $('save').textContent = 'Salvar alterações'; $('cancel').hidden = false; message('Altere os campos e clique em Salvar alterações.'); }); }
+function deleteBoat(boat) { if (boat.situacao === 'ATIVA' || busy) return; if (!confirm(`Excluir a embarcação “${boat.nome}”? Esta ação não pode ser desfeita.`)) return; run(async () => { await request('/' + encodeURIComponent(boat.id), {method:'DELETE'}); if (editingId === boat.id) resetForm(); await refreshAfter('Embarcação excluída com sucesso.'); }); }
+form.addEventListener('submit', event => {
+  event.preventDefault();
+  for (const name of ['nome','registro']) form.elements.namedItem(name).value = form.elements.namedItem(name).value.trim();
+  if (!form.reportValidity()) return;
+  const data = Object.fromEntries(new FormData(form));
+  for (const key of ['quantidadeTripulantes','quantidadePassageiros','anoFabricacao','comprimento']) data[key] = Number(data[key]);
+  const updating = editingId !== null;
+  // O backend existente utiliza o ID do corpo no PUT; mantemos o mesmo ID na URL.
+  if (updating) data.id = editingId;
+  run(async () => { await request(updating ? '/' + encodeURIComponent(editingId) : '', {method:updating ? 'PUT' : 'POST', body:JSON.stringify(data)}); resetForm(); await refreshAfter(updating ? 'Alterações salvas com sucesso.' : 'Embarcação cadastrada com sucesso.'); });
+});
+$('cancel').onclick = () => { resetForm(); message('Edição cancelada.'); };
+$('refresh').onclick = () => run(async () => { await load(); message('Lista atualizada.'); });
+if (location.protocol === 'file:') { message('Abra esta página em http://localhost:8080 com a aplicação em execução. Não abra o arquivo diretamente.', true); setBusy(true); }
+else run(async () => { await load(); message('Pronto! Os dados são consultados na aplicação e armazenados no PostgreSQL.'); });
+</script>
+</body>
+</html>
