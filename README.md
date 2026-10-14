@@ -8,3 +8,5 @@
 - Pedro - 202510550
 
 > Tema: Docker e ambientes de execução: desenvolvimento, homologação e produção.
+
+Link dos slides: https://canva.link/q1woneuzedtelvk
