@@ -9,4 +9,5 @@
 
 > Tema: Docker e ambientes de execução: desenvolvimento, homologação e produção.
 
-Link dos slides: https://canva.link/q1woneuzedtelvk
+Link dos slides do seminário: https://canva.link/q1woneuzedtelvk
+Link dos slides da Atividade do Show do Milhão: https://canva.link/6oywdtit0xyyqcb
