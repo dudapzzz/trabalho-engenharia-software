@@ -394,51 +394,6 @@ docker rm -f app-aula-container
 
 O `-f` para e remove o container. Use apenas quando souber exatamente qual container será removido. Para a explicação principal, `stop` seguido de `rm` torna o ciclo mais fácil de compreender.
 
-## Criando outro container com a mesma imagem
-
-Execute:
-
-```bash
-docker run -d -p 8080:80 --name container-novo app_aula:1.0
-```
-
-Abra novamente:
-
-```text
-http://localhost:8080
-```
-
-Temos outro container, criado a partir da mesma imagem.
-Para demonstrar que uma imagem pode originar vários containers, crie um segundo usando outra porta do computador:
-
-```bash
-docker run -d -p 8081:80 --name outro-container app_aula:1.0
-```
-
-Agora temos:
-
-```text
-http://localhost:8080 → container-novo:80
-http://localhost:8081 → outro-container:80
-```
-
-Liste:
-
-```bash
-docker ps
-```
-
-Explique:
-
-> “Os dois containers são independentes, mas nasceram da mesma imagem. É como usar duas cópias da mesma massa congelada para produzir dois bolos ao mesmo tempo.”
-
-Encerre o container extra:
-
-```bash
-docker stop outro-container
-docker rm outro-container
-```
-
 ## 17. Criando a versão 2.0
 
 No arquivo `index.html`, altere:
@@ -467,13 +422,6 @@ docker image ls
 
 As imagens `1.0` e `2.0` podem coexistir.
 
-O container atual ainda mostra a versão 1.0. Isso acontece porque containers existentes não mudam quando uma nova imagem é construída.
-Remova o container antigo:
-
-```bash
-docker rm -f container-novo
-```
-
 Crie um novo a partir da imagem 2.0:
 
 ```bash
@@ -491,6 +439,9 @@ Agora aparece a versão 2.0.
 Explique:
 
 > “Alterar a receita não transforma bolos que já estão sendo produzidos. Preparamos uma nova massa, etiquetada como versão 2.0, encerramos o container antigo e iniciamos outro usando a nova imagem.”
+
+``` sudo docker rmi app_aula:1.0```
+remove a imagem docker
 
 ## O que aprendemos na primeira aula
 
@@ -579,7 +530,11 @@ Explique em ordem:
 | `COPY --from=build` | Traz somente o JAR gerado na primeira etapa |
 | `USER` | Executa a aplicação com um usuário sem privilégios de root |
 | `EXPOSE 8080` | Documenta a porta interna; não publica essa porta sozinho |
-| `ENTRYPOINT` | Define o processo iniciado ao executar o container |
+| `ENTRYPOINT` | Comando do Docker que garante que o container sempre rode essa função ao ligar.|
+ |["java", ...] | Chama o Java no terminal do container para iniciar a máquina virtual (JVM)|
+ |"-jar"| Um argumento do Java que avisa: "o que vem a seguir é um arquivo compactado .jar executável"|
+|"app.jar"| O nome do arquivo que o Java vai rodar (que foi o arquivo copiado do build)|
+Em resumo: Esse entrypoint diz ao Docker: "Assim que o container ligar, rode imediatamente a nossa aplicação Java".
 
 JDK cria e compila (inclui o JRE), e JRE é o runtime, feito para rodar o software java (inclui o JVM java virtual machine), carrega e executa o código
 > “Compilar é uma etapa. Executar é outra. Na imagem final precisamos do programa e do Java de execução; Maven e código-fonte ficam na etapa de construção.”
@@ -812,6 +767,16 @@ Para encerrar a aula preservando os dados, use apenas:
 docker compose down
 ```
 
+# Parte final
+Persistência: manter os dados depois que um container é removido.
+
+Sincronização: copiar ou coordenar dados entre locais diferentes.
+
+Centralização: fazer todos os usuários acessarem o mesmo banco.
+
+Atualização em tempo real: fazer as telas receberem mudanças automaticamente.
+
+Docker volumes resolvem principalmente o primeiro problema: persistência. Eles não resolvem automaticamente sincronização, atualização das telas, backup ou segurança, ele apenas guarda os dados produzidos naquele ambiente
 
 # Slide 1 — Persistência não é sincronização
 
@@ -819,10 +784,14 @@ docker compose down
 
 ## Notas do apresentador
 
+Persistência significa que os dados continuam existindo depois que o processo ou o container que os utilizava foi encerrado.
+Sincronização significa manter cópias de dados atualizadas em locais diferentes.
+
 Explique que o volume preserva os dados quando os containers são substituídos no mesmo host Docker.
 
-Ele não funciona como Google Drive, Dropbox ou outro serviço de sincronização. Criar volumes com o mesmo nome em dois computadores não faz com que eles possuam o mesmo conteúdo.
-
+Ele não funciona como Google Drive, Dropbox ou outro serviço de sincronização. 
+Criar volumes com o mesmo nome em dois computadores não faz com que eles possuam o mesmo conteúdo.
+O volume mantém os dados no mesmo host Docker, mas não envia cópias desses dados para outros computadores.
 O nome igual não representa o mesmo armazenamento físico.
 
 ---
@@ -851,7 +820,8 @@ Na analogia:
 
 Explique que não precisamos sincronizar vários volumes quando todos os usuários acessam a mesma aplicação.
 
-A aplicação fica em um computador servidor. Todos acessam esse servidor pelo navegador. As requisições chegam ao mesmo backend, que grava tudo no mesmo PostgreSQL e no mesmo volume.
+A aplicação fica em um computador servidor. Todos acessam esse servidor pelo navegador. 
+As requisições chegam ao mesmo backend, que grava tudo no mesmo PostgreSQL e no mesmo volume.
 
 O banco não precisa ser acessado diretamente pelos usuários. O fluxo adequado é:
 
@@ -865,6 +835,14 @@ Evite:
 Usuários → banco diretamente
 ```
 
+Acesso direto aumenta os riscos, já que:
+* usuários podem alterar informações indevidas;
+* regras da aplicação podem ser ignoradas;
+* senhas do banco precisam ser distribuídas;
+* permissões ficam mais difíceis de controlar;
+* consultas incorretas podem prejudicar os dados;
+* o banco fica mais exposto na rede.
+
 ---
 
 # Slide 4 — Dados centralizados não significam tela em tempo real
@@ -873,7 +851,7 @@ Explique que os dados ficam centralizados assim que a aplicação grava no Postg
 
 Na aplicação atual, o usuário precisa clicar em **Atualizar lista**.
 
-Para atualizar as telas automaticamente, seria possível utilizar consultas periódicas, Server-Sent Events ou WebSocket. Não aprofunde a implementação; apresente apenas como possibilidade.
+Para atualizar as telas automaticamente, seria possível utilizar consultas periódicas, Server-Sent Events (O servidor mantém uma conexão e envia eventos ao navegador quando existem novidades.) ou WebSocket (Servidor e navegador podem enviar mensagens durante a mesma conexão. É bastante utilizado em chats, painéis ao vivo, jogos e sistemas colaborativos.).
 
 Finalize explicando que uma implantação real também precisaria de autenticação, HTTPS, controle de acesso, backups, monitoramento e tratamento seguro das credenciais.
 
